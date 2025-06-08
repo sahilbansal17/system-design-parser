@@ -12,6 +12,14 @@ Install python dependencies using pip:
 pip install -r requirements.txt
 ```
 
+If package installation fails with a `TypeError` mentioning
+`canonicalize_version()` when generating metadata, upgrade your packaging
+tools first:
+
+```bash
+python3 -m pip install --upgrade pip setuptools packaging
+```
+
 ## Usage
 
 Set your YouTube API key in `generate_daily_plan.py` and run the plan generator:
