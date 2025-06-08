@@ -1,8 +1,10 @@
 import csv
 from dataclasses import dataclass, asdict
-import yt_dlp
+from googleapiclient.discovery import build
+import isodate
 
-CHANNEL_URL = "https://www.youtube.com/@AsliEngineering/videos"
+CHANNEL_ID = "UC2UXDak6o7rBm23k3Vv5dww"  # Arpit Bhayani's channel ID
+API_KEY = "YOUR_API_KEY"  # set your YouTube Data API key here
 DAYS = 30  # number of days to complete the plan
 DAILY_HOURS = 2  # hours of content per day
 
@@ -16,17 +18,42 @@ class Video:
     prerequisites: str
 
 
-def fetch_videos(url=CHANNEL_URL):
-    """Return metadata for all videos on the channel with a single extraction."""
-    ydl_opts = {
-        'quiet': True,
-        'skip_download': True,
-        # requesting full metadata in one go avoids a second request per video
-        'extract_flat': False,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        channel_info = ydl.extract_info(url, download=False)
-        return [e for e in channel_info.get('entries', []) if e]
+def fetch_videos(channel_id=CHANNEL_ID, api_key=API_KEY):
+    """Return metadata for all videos on the channel using YouTube Data API."""
+    service = build("youtube", "v3", developerKey=api_key)
+    # retrieve the uploads playlist id
+    chan_resp = service.channels().list(part="contentDetails", id=channel_id).execute()
+    uploads_id = chan_resp["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+
+    videos = []
+    next_page = None
+    while True:
+        pl_request = service.playlistItems().list(
+            part="contentDetails",
+            playlistId=uploads_id,
+            maxResults=50,
+            pageToken=next_page,
+        )
+        pl_response = pl_request.execute()
+        ids = [item["contentDetails"]["videoId"] for item in pl_response["items"]]
+        if not ids:
+            break
+        vid_request = service.videos().list(
+            part="snippet,contentDetails",
+            id=",".join(ids),
+            maxResults=50,
+        )
+        vid_response = vid_request.execute()
+        for item in vid_response["items"]:
+            videos.append({
+                "id": item["id"],
+                "title": item["snippet"].get("title", ""),
+                "duration": int(isodate.parse_duration(item["contentDetails"].get("duration", "PT0S")).total_seconds()),
+            })
+        next_page = pl_response.get("nextPageToken")
+        if not next_page:
+            break
+    return videos
 
 
 def infer_tags(title: str) -> str:
@@ -95,7 +122,7 @@ def write_csv(plan, path='daily_plan.csv'):
 
 
 def main():
-    videos = fetch_videos(CHANNEL_URL)
+    videos = fetch_videos()
     plan = build_plan(videos, DAYS, DAILY_HOURS)
     write_csv(plan)
     print(f"Generated daily plan with {len(plan)} entries")

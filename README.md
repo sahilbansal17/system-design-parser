@@ -1,8 +1,8 @@
 # system-design-parser
 
 Utilities to gather system design related material. The repository now includes a
-script to build a daily learning plan from [Arpit Bhayani's](https://www.youtube.com/@AsliEngineering/videos)
-YouTube channel.
+script that builds a daily learning plan from [Arpit Bhayani's](https://www.youtube.com/@AsliEngineering/videos)
+YouTube channel using the YouTube Data API.
 
 ## Requirements
 
@@ -14,7 +14,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run the plan generator:
+Set your YouTube API key in `generate_daily_plan.py` and run the plan generator:
 
 ```bash
 python generate_daily_plan.py
