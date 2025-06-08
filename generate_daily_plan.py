@@ -1,5 +1,4 @@
 import csv
-from datetime import timedelta
 from dataclasses import dataclass, asdict
 import yt_dlp
 
@@ -18,21 +17,16 @@ class Video:
 
 
 def fetch_videos(url=CHANNEL_URL):
-    """Fetch videos from the given YouTube channel."""
+    """Return metadata for all videos on the channel with a single extraction."""
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
+        # requesting full metadata in one go avoids a second request per video
+        'extract_flat': False,
     }
-    videos = []
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         channel_info = ydl.extract_info(url, download=False)
-        for entry in channel_info.get('entries', []):
-            if not entry:
-                continue
-            # Fetch complete info for each video
-            video = ydl.extract_info(entry.get('url'), download=False)
-            videos.append(video)
-    return videos
+        return [e for e in channel_info.get('entries', []) if e]
 
 
 def infer_tags(title: str) -> str:
