@@ -2,6 +2,8 @@
 
 Utilities to gather system design related material. The repository now includes a script that builds a daily learning plan from [Arpit Bhayani's](https://www.youtube.com/@AsliEngineering/videos) YouTube channel using the YouTube Data API.
 
+For a comprehensive six‑month study schedule covering the [System Design Primer](https://github.com/donnemartin/system-design-primer), see [SYSTEM_DESIGN_PRIMER.md](SYSTEM_DESIGN_PRIMER.md).
+
 ## Requirements
 
 Install python dependencies using pip:
