@@ -5,13 +5,13 @@ from googleapiclient.discovery import build
 import isodate
 
 # Set your YouTube Data API key here. You can also set YOUTUBE_API_KEY env var
-API_KEY = os.environ.get("YOUTUBE_API_KEY", "YOUR_API_KEY")
+API_KEY = os.environ.get("YOUTUBE_API_KEY", "AIzaSyC3EZgIH4bm54aGbNSZV_6SBx0b1wTJV20")
 
 # Channel handle and optional ID
 CHANNEL_HANDLE = "@AsliEngineering"
 CHANNEL_ID = None  # set to a channel ID string to skip handle resolution
 
-DAYS = 30  # number of days to complete the plan
+DAYS = 60  # number of days to complete the plan
 DAILY_HOURS = 2  # hours of content per day
 
 @dataclass
