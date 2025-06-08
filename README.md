@@ -19,7 +19,11 @@ python3 -m pip install --upgrade pip setuptools packaging
 ## Usage
 
 1. Obtain a YouTube Data API key. Create a project in [Google Cloud Console](https://console.cloud.google.com/), enable **YouTube Data API v3**, then create an API key.
-2. Edit `generate_daily_plan.py` and set `API_KEY` to your key. The script can also look up the channel ID automatically from the handle `@AsliEngineering`.
+2. Export the key as `YOUTUBE_API_KEY` so the script can read it. The channel ID is resolved automatically from the handle `@AsliEngineering`:
+
+```bash
+export YOUTUBE_API_KEY=<your-key>
+```
 3. Run the generator:
 
 ```bash
@@ -32,7 +36,7 @@ The script downloads metadata for all available videos on the channel and create
 - `title` – video title
 - `link` – URL to the video
 - `duration` – length in seconds
-- `tags` – inferred topic tags
+- `tags` – tags inferred from the title and the video's own tags
 - `highlights` – short bullet of the video
 - `prerequisites` – background required if any
 

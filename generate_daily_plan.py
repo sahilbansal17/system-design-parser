@@ -1,10 +1,11 @@
 import csv
+import os
 from dataclasses import dataclass, asdict
 from googleapiclient.discovery import build
 import isodate
 
-# Set your YouTube Data API key here
-API_KEY = "YOUR_API_KEY"
+# Set your YouTube Data API key here. You can also set YOUTUBE_API_KEY env var
+API_KEY = os.environ.get("YOUTUBE_API_KEY", "YOUR_API_KEY")
 
 # Channel handle and optional ID
 CHANNEL_HANDLE = "@AsliEngineering"
@@ -65,6 +66,7 @@ def fetch_videos(channel_id: str | None = None, api_key: str = API_KEY):
                 {
                     "id": item["id"],
                     "title": item["snippet"].get("title", ""),
+                    "snippet_tags": item["snippet"].get("tags", []),
                     "duration": int(
                         isodate.parse_duration(item["contentDetails"].get("duration", "PT0S")).total_seconds()
                     ),
@@ -76,7 +78,7 @@ def fetch_videos(channel_id: str | None = None, api_key: str = API_KEY):
     return videos
 
 
-def infer_tags(title: str) -> str:
+def infer_tags(title: str, yt_tags: list[str]) -> str:
     title_lower = title.lower()
     topics = {
         "database": "database",
@@ -86,11 +88,16 @@ def infer_tags(title: str) -> str:
         "python": "python",
     }
     tags = [v for k, v in topics.items() if k in title_lower]
+    for yt_tag in yt_tags:
+        lt = yt_tag.lower()
+        for key, val in topics.items():
+            if key in lt and val not in tags:
+                tags.append(val)
     return ",".join(tags) if tags else "general"
 
 
 def infer_highlights(title: str) -> str:
-    words = title.split()[:3]
+    words = title.split()[:5]
     return " ".join(words)
 
 
@@ -123,7 +130,7 @@ def build_plan(videos, days: int = DAYS, daily_hours: int = DAILY_HOURS):
             title=video.get("title", ""),
             link=f"https://www.youtube.com/watch?v={video.get('id')}",
             duration=duration,
-            tags=infer_tags(video.get("title", "")),
+            tags=infer_tags(video.get("title", ""), video.get("snippet_tags", [])),
             highlights=infer_highlights(video.get("title", "")),
             prerequisites=infer_prerequisites(video.get("title", "")),
         )
