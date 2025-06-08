@@ -3,8 +3,13 @@ from dataclasses import dataclass, asdict
 from googleapiclient.discovery import build
 import isodate
 
-CHANNEL_ID = "UC2UXDak6o7rBm23k3Vv5dww"  # Arpit Bhayani's channel ID
-API_KEY = "YOUR_API_KEY"  # set your YouTube Data API key here
+# Set your YouTube Data API key here
+API_KEY = "YOUR_API_KEY"
+
+# Channel handle and optional ID
+CHANNEL_HANDLE = "@AsliEngineering"
+CHANNEL_ID = None  # set to a channel ID string to skip handle resolution
+
 DAYS = 30  # number of days to complete the plan
 DAILY_HOURS = 2  # hours of content per day
 
@@ -18,10 +23,21 @@ class Video:
     prerequisites: str
 
 
-def fetch_videos(channel_id=CHANNEL_ID, api_key=API_KEY):
+def resolve_channel_id(handle: str, api_key: str) -> str:
+    """Resolve a YouTube channel ID from its handle."""
+    service = build("youtube", "v3", developerKey=api_key)
+    query = handle[1:] if handle.startswith("@") else handle
+    resp = service.search().list(part="snippet", q=query, type="channel", maxResults=1).execute()
+    if not resp.get("items"):
+        raise RuntimeError(f"Channel not found for handle: {handle}")
+    return resp["items"][0]["snippet"]["channelId"]
+
+
+def fetch_videos(channel_id: str | None = None, api_key: str = API_KEY):
     """Return metadata for all videos on the channel using YouTube Data API."""
     service = build("youtube", "v3", developerKey=api_key)
-    # retrieve the uploads playlist id
+    if not channel_id:
+        channel_id = resolve_channel_id(CHANNEL_HANDLE, api_key)
     chan_resp = service.channels().list(part="contentDetails", id=channel_id).execute()
     uploads_id = chan_resp["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
 
@@ -35,7 +51,7 @@ def fetch_videos(channel_id=CHANNEL_ID, api_key=API_KEY):
             pageToken=next_page,
         )
         pl_response = pl_request.execute()
-        ids = [item["contentDetails"]["videoId"] for item in pl_response["items"]]
+        ids = [item["contentDetails"]["videoId"] for item in pl_response.get("items", [])]
         if not ids:
             break
         vid_request = service.videos().list(
@@ -44,12 +60,16 @@ def fetch_videos(channel_id=CHANNEL_ID, api_key=API_KEY):
             maxResults=50,
         )
         vid_response = vid_request.execute()
-        for item in vid_response["items"]:
-            videos.append({
-                "id": item["id"],
-                "title": item["snippet"].get("title", ""),
-                "duration": int(isodate.parse_duration(item["contentDetails"].get("duration", "PT0S")).total_seconds()),
-            })
+        for item in vid_response.get("items", []):
+            videos.append(
+                {
+                    "id": item["id"],
+                    "title": item["snippet"].get("title", ""),
+                    "duration": int(
+                        isodate.parse_duration(item["contentDetails"].get("duration", "PT0S")).total_seconds()
+                    ),
+                }
+            )
         next_page = pl_response.get("nextPageToken")
         if not next_page:
             break
@@ -59,28 +79,28 @@ def fetch_videos(channel_id=CHANNEL_ID, api_key=API_KEY):
 def infer_tags(title: str) -> str:
     title_lower = title.lower()
     topics = {
-        'database': 'database',
-        'cache': 'cache',
-        'queue': 'queue',
-        'design': 'system-design',
-        'python': 'python',
+        "database": "database",
+        "cache": "cache",
+        "queue": "queue",
+        "design": "system-design",
+        "python": "python",
     }
     tags = [v for k, v in topics.items() if k in title_lower]
-    return ','.join(tags) if tags else 'general'
+    return ",".join(tags) if tags else "general"
 
 
 def infer_highlights(title: str) -> str:
     words = title.split()[:3]
-    return ' '.join(words)
+    return " ".join(words)
 
 
 def infer_prerequisites(title: str) -> str:
-    if 'advanced' in title.lower():
-        return 'basic knowledge required'
-    return ''
+    if "advanced" in title.lower():
+        return "basic knowledge required"
+    return ""
 
 
-def build_plan(videos, days=DAYS, daily_hours=DAILY_HOURS):
+def build_plan(videos, days: int = DAYS, daily_hours: int = DAILY_HOURS):
     daily_seconds = daily_hours * 3600
     plan = []
     day = 1
@@ -89,32 +109,35 @@ def build_plan(videos, days=DAYS, daily_hours=DAILY_HOURS):
     for video in videos:
         if day > days:
             break
-        duration = video.get('duration') or 0
-        if (day_time + duration > daily_seconds and day_count >= 2) or day_time >= daily_seconds:
+        duration = video.get("duration") or 0
+        if (
+            (day_time + duration > daily_seconds and day_count >= 2)
+            or day_time >= daily_seconds
+        ):
             day += 1
             day_time = 0
             day_count = 0
             if day > days:
                 break
         v = Video(
-            title=video.get('title', ''),
+            title=video.get("title", ""),
             link=f"https://www.youtube.com/watch?v={video.get('id')}",
             duration=duration,
-            tags=infer_tags(video.get('title', '')),
-            highlights=infer_highlights(video.get('title', '')),
-            prerequisites=infer_prerequisites(video.get('title', '')),
+            tags=infer_tags(video.get("title", "")),
+            highlights=infer_highlights(video.get("title", "")),
+            prerequisites=infer_prerequisites(video.get("title", "")),
         )
-        plan.append({'day': day, **asdict(v)})
+        plan.append({"day": day, **asdict(v)})
         day_time += duration
         day_count += 1
     return plan
 
 
-def write_csv(plan, path='daily_plan.csv'):
+def write_csv(plan, path: str = "daily_plan.csv"):
     if not plan:
         return
-    fieldnames = ['day', 'title', 'link', 'duration', 'tags', 'highlights', 'prerequisites']
-    with open(path, 'w', newline='', encoding='utf-8') as f:
+    fieldnames = ["day", "title", "link", "duration", "tags", "highlights", "prerequisites"]
+    with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for item in plan:
@@ -122,11 +145,11 @@ def write_csv(plan, path='daily_plan.csv'):
 
 
 def main():
-    videos = fetch_videos()
+    videos = fetch_videos(CHANNEL_ID, API_KEY)
     plan = build_plan(videos, DAYS, DAILY_HOURS)
     write_csv(plan)
     print(f"Generated daily plan with {len(plan)} entries")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
